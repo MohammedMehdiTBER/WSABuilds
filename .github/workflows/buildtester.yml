@@ -1,5 +1,5 @@
 name: Custom Build (for testing purpose)
-run-name: WSA ${{ inputs.release_type }} ${{ inputs.arch }} with ${{ inputs.root_sol }} and ${{ inputs.gapps_brand }} as ${{ inputs.custom_model }}
+run-name: WSA ${{ inputs.release_type }} ${{ inputs.arch }} with ${{ inputs.root_sol }}
 on:
   workflow_dispatch:
     inputs:
@@ -32,15 +32,17 @@ on:
         required: true
         options: ["Non-root","KernelSU","Magisk Stable","Magisk Beta","Magisk Canary","Magisk Debug","Magisk Alpha (vvb2060)","Magisk Delta (HuskyDG)"]
         default: "Magisk Stable"
+      # Note: GApps, Custom Model, and Remove Amazon inputs are kept for UI consistency 
+      # but are ignored by the build script in this version.
       gapps_brand:
         type: choice
-        description: Google Apps brand
+        description: Google Apps brand (Not supported in current build script)
         required: true
         options: ["MindTheGapps v13.0","No GApps"]
         default: "MindTheGapps v13.0"
       custom_model:
         type: choice
-        description: Custom model
+        description: Custom model (Not supported in current build script)
         required: true
         options: ["WSA Default", "Pixel 4a", "Pixel 4a (5G)", "Pixel 5", "Pixel 5a", "Pixel 6", "Pixel 6 Pro", "Pixel 6a", "Pixel 7", "Pixel 7 Pro", "Pixel 7a", "Pixel Tablet", "Pixel Fold"]
         default: "Pixel 5"
@@ -51,7 +53,7 @@ on:
         options: [".zip",".7z"]
         default: ".7z"
       remove_amazon:
-        description: "Remove Amazon Appstore from the system"
+        description: "Remove Amazon Appstore (Not supported in current build script)"
         required: true
         default: true
         type: boolean
@@ -105,7 +107,7 @@ jobs:
         id: wsa
         working-directory: MagiskOnWSA
         run: |
-          declare -A opts=( ["RELEASE_TYPE,Retail"]="retail" ["RELEASE_TYPE,Release Preview"]="RP" ["RELEASE_TYPE,Insider Slow"]="WIS" ["RELEASE_TYPE,Insider Fast"]="WIF" ["RELEASE_TYPE,Insider Private"]="latest" ["ROOT_SOL,Magisk Stable"]="stable" ["ROOT_SOL,Magisk Beta"]="beta" ["ROOT_SOL,Magisk Canary"]="canary" ["ROOT_SOL,Magisk Debug"]="debug" ["ROOT_SOL,Magisk Delta (HuskyDG)"]="delta" ["ROOT_SOL,Magisk Alpha (vvb2060)"]="alpha" ["ROOT_SOL,KernelSU"]="kernelsu" ["ROOT_SOL,Non-root"]="none" ["GAPPS_BRAND,MindTheGapps v13.0"]="MindTheGapps" ["GAPPS_BRAND,No GApps"]="none" ["CUSTOM_MODEL,WSA Default"]="none" ["CUSTOM_MODEL,Pixel 4a"]="sunfish" ["CUSTOM_MODEL,Pixel 4a (5G)"]="bramble" ["CUSTOM_MODEL,Pixel 5"]="redfin" ["CUSTOM_MODEL,Pixel 5a"]="barbet" ["CUSTOM_MODEL,Pixel 6 Pro"]="raven" ["CUSTOM_MODEL,Pixel 6"]="oriole" ["CUSTOM_MODEL,Pixel 6a"]="bluejay" ["CUSTOM_MODEL,Pixel 7"]="panther" ["CUSTOM_MODEL,Pixel 7 Pro"]="cheetah" ["CUSTOM_MODEL,Pixel 7a"]="lynx" ["CUSTOM_MODEL,Pixel Tablet"]="tangorpro" ["CUSTOM_MODEL,Pixel Fold"]="felix" ["REMOVE_AMAZON,true"]="--remove-amazon" ["COMPRESSION,.zip"]="zip" ["COMPRESSION,.7z"]="7z" )
+          declare -A opts=( ["RELEASE_TYPE,Retail"]="retail" ["RELEASE_TYPE,Release Preview"]="RP" ["RELEASE_TYPE,Insider Slow"]="WIS" ["RELEASE_TYPE,Insider Fast"]="WIF" ["RELEASE_TYPE,Insider Private"]="latest" ["ROOT_SOL,Magisk Stable"]="stable" ["ROOT_SOL,Magisk Beta"]="beta" ["ROOT_SOL,Magisk Canary"]="canary" ["ROOT_SOL,Magisk Debug"]="debug" ["ROOT_SOL,Magisk Delta (HuskyDG)"]="delta" ["ROOT_SOL,Magisk Alpha (vvb2060)"]="alpha" ["ROOT_SOL,KernelSU"]="kernelsu" ["ROOT_SOL,Non-root"]="none" ["COMPRESSION,.zip"]="zip" ["COMPRESSION,.7z"]="7z" )
 
           if [[ "${{ inputs.root_sol }}" == *Magisk* ]]; then
               MAGISK_VER="${opts[ROOT_SOL,${{ inputs.root_sol }}]}"
@@ -117,7 +119,9 @@ jobs:
           chmod -R 777 ./
           mkdir -p download
           echo -e "user_code=$(cat $GITHUB_EVENT_PATH | jq -r '.inputs.user_code')" > download/.ms_account
-          ./scripts/build.sh --arch ${{ inputs.arch }} --release-type ${opts[RELEASE_TYPE,${{ inputs.release_type }}]} --magisk-ver $MAGISK_VER --gapps-brand ${opts[GAPPS_BRAND,${{ inputs.gapps_brand }}]} --custom-model ${opts[CUSTOM_MODEL,${{ inputs.custom_model }}]} --root-sol $ROOT_SOL --compress-format ${opts[COMPRESSION,${{ inputs.compression }}]} ${opts[REMOVE_AMAZON,${{ inputs.remove_amazon }}]} --after-compress
+          
+          # UPDATED COMMAND: Removed --gapps-brand, --custom-model, --remove-amazon, and --after-compress
+          ./scripts/build.sh --arch ${{ inputs.arch }} --release-type ${opts[RELEASE_TYPE,${{ inputs.release_type }}]} --magisk-ver $MAGISK_VER --root-sol $ROOT_SOL --compress-format ${opts[COMPRESSION,${{ inputs.compression }}]}
         shell: bash
 
 
