@@ -32,8 +32,6 @@ on:
         required: true
         options: ["Non-root","KernelSU","Magisk Stable","Magisk Beta","Magisk Canary","Magisk Debug","Magisk Alpha (vvb2060)","Magisk Delta (HuskyDG)"]
         default: "Magisk Stable"
-      # Note: GApps, Custom Model, and Remove Amazon inputs are kept for UI consistency 
-      # but are ignored by the build script in this version.
       gapps_brand:
         type: choice
         description: Google Apps brand (Not supported in current build script)
@@ -120,20 +118,23 @@ jobs:
           mkdir -p download
           echo -e "user_code=$(cat $GITHUB_EVENT_PATH | jq -r '.inputs.user_code')" > download/.ms_account
           
-          # UPDATED COMMAND: Removed --gapps-brand, --custom-model, --remove-amazon, and --after-compress
           ./scripts/build.sh --arch ${{ inputs.arch }} --release-type ${opts[RELEASE_TYPE,${{ inputs.release_type }}]} --magisk-ver $MAGISK_VER --root-sol $ROOT_SOL --compress-format ${opts[COMPRESSION,${{ inputs.compression }}]}
         shell: bash
 
+      - name: Move Output for Caching
+        run: mv MagiskOnWSA/output output
 
       - name: Set date
         id: date
-        run: echo "DATE=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+        # FIXED: Writing to GITHUB_OUTPUT so it can be used in job outputs
+        run: echo "date=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
         shell: bash
   
       - name: Pass to Windows 💸
         uses: actions/cache/save@v4
         with:
-          path: MagiskOnWSA/output
+          # FIXED: Path now matches the 'make-pri' job expectation
+          path: output
           key: ${{ steps.wsa.outputs.artifact }}-${{ steps.date.outputs.date }}
           enableCrossOsArchive: true
 
