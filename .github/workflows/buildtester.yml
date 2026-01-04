@@ -118,12 +118,23 @@ jobs:
           mkdir -p download
           echo -e "user_code=$(cat $GITHUB_EVENT_PATH | jq -r '.inputs.user_code')" > download/.ms_account
           
-          # FIXED: Forced --compress-format none so output is a directory, not a zip file
+          # Using --compress-format none to ensure we get a folder, not a zip
           ./scripts/build.sh --arch ${{ inputs.arch }} --release-type ${opts[RELEASE_TYPE,${{ inputs.release_type }}]} --magisk-ver $MAGISK_VER --root-sol $ROOT_SOL --compress-format none
         shell: bash
 
-      - name: Move Output for Caching
-        run: mv MagiskOnWSA/output output
+      - name: Move Output and Sanitize Name
+        id: move_output
+        run: |
+          # Move the internal output folder to the root 'output' folder
+          mv MagiskOnWSA/output output
+          
+          # Find the actual folder name inside output (e.g., WSA_2407...)
+          # We use ls and head to get the name, and tr to strip any newlines/returns
+          ARTIFACT_NAME=$(ls output | head -n 1 | tr -d '\n' | tr -d '\r')
+          
+          echo "Detected Artifact Name: $ARTIFACT_NAME"
+          echo "artifact=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Set date
         id: date
@@ -134,11 +145,13 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: output
-          key: ${{ steps.wsa.outputs.artifact }}-${{ steps.date.outputs.date }}
+          # Using the sanitized artifact name from the move_output step
+          key: ${{ steps.move_output.outputs.artifact }}-${{ steps.date.outputs.date }}
           enableCrossOsArchive: true
 
     outputs:
-      artifact: ${{ steps.wsa.outputs.artifact }}
+      # Pointing to the sanitized output
+      artifact: ${{ steps.move_output.outputs.artifact }}
       built: ${{ steps.wsa.outputs.built }}
       date: ${{ steps.date.outputs.date }}
 
@@ -160,11 +173,22 @@ jobs:
 
       - name: Merge language and density resources 🧙🏻‍♂️
         run: |
+          $ArtifactName = "${{ needs.build.outputs.artifact }}"
+          $WsaDir = Join-Path "${{ github.workspace }}\output" $ArtifactName
+          
+          # Debugging: Verify directory exists
+          Write-Output "Looking for WSA Directory at: $WsaDir"
+          if (-not (Test-Path $WsaDir)) {
+              Write-Error "Directory not found! Listing 'output' contents:"
+              Get-ChildItem "${{ github.workspace }}\output"
+              exit 1
+          }
+
           if ("${{ inputs.arch }}" -eq "x64") {
-            # FIXED: Added absolute path to MakePri.ps1 so it can be found when WorkingDirectory is changed
-            (Start-Process pwsh.exe -NoNewWindow -PassThru -Args "-ExecutionPolicy Bypass -File `"${{ github.workspace }}\MakePri.ps1`"" -WorkingDirectory "${{ github.workspace }}\output\${{ needs.build.outputs.artifact }}").WaitForExit()
+            # Using the verified $WsaDir variable for WorkingDirectory
+            (Start-Process pwsh.exe -NoNewWindow -PassThru -Args "-ExecutionPolicy Bypass -File `"${{ github.workspace }}\MakePri.ps1`"" -WorkingDirectory "$WsaDir").WaitForExit()
           } else {
-            Copy-Item -Force "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\arm64\makepri.exe" "${{ github.workspace }}\output\${{ needs.build.outputs.artifact }}"
+            Copy-Item -Force "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\arm64\makepri.exe" "$WsaDir"
           }
 
       - name: Compact Images 💿
